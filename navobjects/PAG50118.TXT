@@ -1,0 +1,71 @@
+OBJECT Page 50118 Inbound Messages
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Inbound Messages;
+    SourceTable=Table50164;
+    PageType=List;
+    CardPageID=Inbound Message;
+    ActionList=ACTIONS
+    {
+      { 1000000003;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1000000007;1 ;Action    ;
+                      Name=Process Queue;
+                      CaptionML=ENU=Process Queue;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Start;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 //FET-KY >>>
+                                 IF CODEUNIT.RUN(CODEUNIT::"Process Inbound Message Queue") THEN
+                                   MESSAGE(ProcessInboundQueueSuccessTxt);
+                                 //FET-KY <<<
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Entry No." }
+
+    { 1000000004;2;Field  ;
+                SourceExpr="Creation Datetime" }
+
+    { 1000000005;2;Field  ;
+                SourceExpr=Status }
+
+    { 1000000006;2;Field  ;
+                SourceExpr=Company }
+
+  }
+  CODE
+  {
+    VAR
+      ProcessInboundQueueSuccessTxt@1000000000 : TextConst 'ENU=The inbound message queue has been processed.';
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Drawing creation
+    }
+    END.
+  }
+}
+

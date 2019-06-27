@@ -1,0 +1,10 @@
+# File created for exclusion rules
+
+# Navision FOB files
+*.fob
+
+# SQL Server backup files
+*.bak
+
+# Exclude temp folder
+temp/

@@ -1,0 +1,101 @@
+OBJECT Codeunit 50047 Process Inbound Message Queue
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            InboundMessage@1000000002 : Record 50164;
+            MessageTypeCode@1000000000 : Code[128];
+          BEGIN
+            //FET-KY >>>
+            WITH InboundMessage DO BEGIN
+              SETRANGE(Status,Status::New);
+              SETRANGE(Company,COMPANYNAME);
+              IF FINDSET THEN
+              REPEAT
+                CALCFIELDS("Message Received");
+                IF "Message Received".HASVALUE THEN BEGIN
+                  MessageTypeCode := GetMessageType(InboundMessage);
+                  StartMessageProcessing(InboundMessage,MessageTypeCode);
+                  COMMIT;
+                END;
+              UNTIL NEXT = 0;
+            END;
+            //FET-KY <<<
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      SessionStartErr@1000000000 : TextConst 'ENU=Unable to start a new session for codeunit %1 and company %2.';
+      MessageTypeErr@1000000001 : TextConst 'ENU=Could not find message type %1.';
+
+    LOCAL PROCEDURE GetMessageType@1000000000(VAR InMessage@1000000000 : Record 50164) : Code[128];
+    VAR
+      XmlDOMMgt@1000000006 : Codeunit 6224;
+      DOMXml@1000000005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      RootNode@1000000004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ReturnedNode@1000000003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      MessageType@1000000002 : Text;
+      TextXml@1000000001 : Text;
+    BEGIN
+      //FET-KY >>>
+      CLEAR(XmlDOMMgt);
+      DOMXml := DOMXml.XmlDocument;
+      TextXml := InMessage.GetTextMessage;
+      DOMXml.LoadXml(InMessage.GetTextMessage);
+      RootNode := DOMXml.DocumentElement();
+      XmlDOMMgt.FindNode(RootNode,'/Message/Header/Type',ReturnedNode);
+      MessageType := ReturnedNode.InnerXml;
+      EXIT(UPPERCASE(MessageType));
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE StartMessageProcessing@1000000001(VAR Message@1000000000 : Record 50164;MessageTypeCode@1000000001 : Code[128]);
+    VAR
+      MessageType@1000000004 : Record 50165;
+      SessionId@1000000003 : Integer;
+      OK@1000000002 : Boolean;
+      Company@1000000005 : Record 2000000006;
+    BEGIN
+      //FET-KY >>>
+      MessageType.RESET;
+      MessageType.SETRANGE(Code,MessageTypeCode);
+      MessageType.SETRANGE(Direction,MessageType.Direction::Inbound);
+      IF NOT MessageType.FINDFIRST THEN
+        MessageType.SETRANGE(Direction,MessageType.Direction::Both);
+
+      IF MessageType.FINDFIRST THEN BEGIN
+        IF NOT Company.GET(Message.Company) THEN
+          Company.INIT;
+        OK := STARTSESSION(SessionId,MessageType."Handling Codeunit",Company.Name,Message);
+        IF NOT OK THEN BEGIN
+          Message.Status := Message.Status::Error;
+          Message.Comment := COPYSTR(STRSUBSTNO(SessionStartErr,MessageType."Handling Codeunit",Company.Name),1,250);
+          Message.MODIFY;
+        END;
+
+      END ELSE BEGIN
+        Message.Status := Message.Status::Error;
+        Message.Comment := COPYSTR(STRSUBSTNO(MessageTypeErr,MessageTypeCode),1,250);
+        Message.MODIFY;
+      END;
+      //FET-KY <<<
+    END;
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Creation of dispatch codeunit for inbound messages
+    }
+    END.
+  }
+}
+

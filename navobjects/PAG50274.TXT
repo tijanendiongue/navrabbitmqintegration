@@ -1,0 +1,69 @@
+OBJECT Page 50274 Message Types
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY-MJ;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    CaptionML=ENU=Message Types;
+    SourceTable=Table50165;
+    PageType=List;
+    CardPageID=Message Type;
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=Code }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=Description }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=Direction }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Handling Codeunit" }
+
+    { 1000000010;2;Field  ;
+                SourceExpr=RabbitMQ }
+
+    { 1000000006;2;Field  ;
+                SourceExpr="Exchange Name" }
+
+    { 1000000007;2;Field  ;
+                SourceExpr="Exchange Type" }
+
+    { 1000000008;2;Field  ;
+                SourceExpr="Active Declaration" }
+
+    { 1000000009;2;Field  ;
+                SourceExpr="Queue Name" }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Page creation
+
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Added RabbitMQ fields
+    }
+    END.
+  }
+}
+

@@ -1,0 +1,52 @@
+OBJECT Page 50193 Message Processing Log Entries
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Message Processing Log Entries;
+    InsertAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table50166;
+  }
+  CONTROLS
+  {
+    { 1000000000;;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Entry No." }
+
+    { 1000000004;2;Field  ;
+                SourceExpr="Message Entry No." }
+
+    { 1000000006;2;Field  ;
+                SourceExpr="Log Type" }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=Log }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Message Direction" }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        -Page creation
+    }
+    END.
+  }
+}
+

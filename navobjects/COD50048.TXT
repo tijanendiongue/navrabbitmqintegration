@@ -1,0 +1,49 @@
+OBJECT Codeunit 50048 Drawing Integration Mgt.
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    TableNo=50164;
+    OnRun=VAR
+            MessageProcessingLog@1000000000 : Record 50166;
+          BEGIN
+            //FET-KY >>>
+            Status := Status::"In Progress";
+            MODIFY;
+            COMMIT;
+            IF CODEUNIT.RUN(CODEUNIT::"Drawing Integration Run",Rec) THEN BEGIN
+              CALCFIELDS("No. of Errors");
+              IF "No. of Errors" > 0 THEN BEGIN
+                Status := Status::Error;
+                Comment := 'At least one drawing could not be processed please check log for more details.';
+              END ELSE BEGIN
+                Status := Status::Success;
+                Comment := 'Drawings message integrated successfully';
+              END;
+            END ELSE BEGIN
+              Status := Status::Error;
+              Comment := COPYSTR(GETLASTERRORTEXT,1,MAXSTRLEN(Comment));
+            END;
+            MODIFY;
+            //FET-KY <<<
+          END;
+
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Codeunit for running Drawing integration
+    }
+    END.
+  }
+}
+

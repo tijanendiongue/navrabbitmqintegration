@@ -1,0 +1,48 @@
+OBJECT Page 50284 RabbitMQ Routing Subform
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-MJ;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Routings;
+    MultipleNewLines=Yes;
+    LinksAllowed=No;
+    SourceTable=Table50173;
+    DelayedInsert=Yes;
+    PageType=ListPart;
+    AutoSplitKey=Yes;
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Line No.";
+                Visible=FALSE }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Routing Key" }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Page creation
+    }
+    END.
+  }
+}
+

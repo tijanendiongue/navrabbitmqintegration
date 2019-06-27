@@ -1,0 +1,117 @@
+OBJECT Page 50131 Drawings List
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=TRG3.01,FET-9E-BJ-MJ;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Drawings;
+    SourceTable=Table50130;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 1000000009;  ;ActionContainer;
+                      Name=FET;
+                      ActionContainerType=ActionItems }
+      { 1000000010;1 ;Action    ;
+                      Name=Where Used;
+                      CaptionML=ENU=Where Used;
+                      Promoted=Yes;
+                      Image=Where-Used;
+                      OnAction=BEGIN
+                                 WhereUsedPg.SetDrawingNo("Drawing No.");
+                                 WhereUsedPg.RUN;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Drawing No." }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=Revision }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=Status }
+
+    { 1000000005;2;Field  ;
+                SourceExpr=Notes }
+
+    { 1000000006;2;Field  ;
+                SourceExpr=Hyperlink }
+
+    { 1000000007;2;Field  ;
+                SourceExpr="Created Date/Time" }
+
+    { 1000000008;2;Field  ;
+                SourceExpr="Modified Date/Time" }
+
+    { 1000000011;2;Field  ;
+                SourceExpr=DocRecID;
+                Visible=False;
+                Enabled=False;
+                HideValue=False }
+
+    { 1000000012;2;Field  ;
+                SourceExpr=DrwgDate;
+                Visible=False;
+                Enabled=False;
+                HideValue=False }
+
+    { 1000000013;2;Field  ;
+                SourceExpr=DateApproved;
+                Visible=False;
+                Enabled=False;
+                HideValue=False }
+
+    { 1000000014;2;Field  ;
+                SourceExpr=AuditUser;
+                Visible=False;
+                Enabled=FALSE }
+
+    { 1000000015;2;Field  ;
+                SourceExpr=AuditDate;
+                Visible=False;
+                Enabled=FALSE;
+                HideValue=False }
+
+    { 300000;2 ;Field     ;
+                SourceExpr="File Version No." }
+
+  }
+  CODE
+  {
+    VAR
+      Item@1000000000 : Record 27;
+      TempWhereUsed@1000000001 : TEMPORARY Record 50129;
+      WhereUsedPg@1000000002 : Page 50129;
+
+    BEGIN
+    {
+      TRG3.00 LFM 12/09/16 [TASK 7338] [FET-9E]
+       - Created page for Drawings functionality
+       - Added Where-Used action to find where the Drawing is used.
+
+      TRG3.01 HCC 03/10/17 [TASK 9318] [FET-BJ]
+       -Add fields DocRecID, DrwgDate, DateApproved, AuditUser, AuditDate
+
+      FET-MJ TND 05/06/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Added field "File Version No."
+    }
+    END.
+  }
+}
+

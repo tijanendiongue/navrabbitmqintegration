@@ -1,0 +1,47 @@
+OBJECT Table 50166 Message Processing Log Entry
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    CaptionML=ENU=Message Processing Log Entry;
+    LookupPageID=Page50193;
+    DrillDownPageID=Page50193;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;CaptionML=ENU=Entry No. }
+    { 2   ;   ;Message Direction   ;Option        ;CaptionML=ENU=Message Direction;
+                                                   OptionString=Inbound,Outbound }
+    { 3   ;   ;Message Entry No.   ;Integer       ;TableRelation="Inbound Message"."Entry No.";
+                                                   ValidateTableRelation=No;
+                                                   CaptionML=ENU=Message Entry No. }
+    { 4   ;   ;Log                 ;Text250        }
+    { 5   ;   ;Log Type            ;Option        ;CaptionML=ENU=Log Type;
+                                                   OptionString=Information,Warning,Error }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Creation of processing log table
+    }
+    END.
+  }
+}
+

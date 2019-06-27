@@ -1,0 +1,90 @@
+OBJECT Table 50164 Inbound Message
+{
+  OBJECT-PROPERTIES
+  {
+    Date=11/14/18;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnDelete=VAR
+               MessageProcessLogEntry@1000000000 : Record 50166;
+             BEGIN
+               //FET-KY >>>
+               MessageProcessLogEntry.RESET;
+               MessageProcessLogEntry.SETRANGE("Message Entry No.","Entry No.");
+               MessageProcessLogEntry.DELETEALL(TRUE);
+               //FET-KY <<<
+             END;
+
+    CaptionML=ENU=Inbound Message;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;CaptionML=ENU=Entry No. }
+    { 2   ;   ;Message Received    ;BLOB          ;CaptionML=ENU=Message }
+    { 3   ;   ;Creation Datetime   ;DateTime      ;CaptionML=ENU=Creation Datetime }
+    { 4   ;   ;Status              ;Option        ;CaptionML=ENU=Status;
+                                                   OptionCaptionML=ENU=New,In Progress,Success,Error;
+                                                   OptionString=New,In Progress,Success,Error }
+    { 5   ;   ;Company             ;Text30        ;TableRelation=Company;
+                                                   ValidateTableRelation=No;
+                                                   CaptionML=ENU=Company }
+    { 6   ;   ;Comment             ;Text250       ;CaptionML=ENU=Comment }
+    { 8   ;   ;No. of Informations ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Message Processing Log Entry" WHERE (Message Entry No.=FIELD(Entry No.),
+                                                                                                           Log Type=CONST(Information)));
+                                                   CaptionML=ENU=No. of Informations;
+                                                   Editable=No }
+    { 9   ;   ;No. of Errors       ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Message Processing Log Entry" WHERE (Message Entry No.=FIELD(Entry No.),
+                                                                                                           Log Type=CONST(Error)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    PROCEDURE GetTextMessage@1000000000() : Text;
+    VAR
+      IStream@1000000000 : InStream;
+      StreamReader@1000000001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.StreamReader";
+    BEGIN
+      //FET-KY >>>
+      CALCFIELDS(Rec."Message Received");
+      IF Rec."Message Received".HASVALUE THEN BEGIN
+        "Message Received".CREATEINSTREAM(IStream,TEXTENCODING::UTF8);
+        StreamReader := StreamReader.StreamReader(IStream,TRUE);
+        EXIT(StreamReader.ReadToEnd);
+      END;
+      //FET-KY <<<
+    END;
+
+    PROCEDURE LoadXMLin@2(VAR DOMxmlin@1001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument");
+    VAR
+      OutStrm@1000 : OutStream;
+    BEGIN
+      //FET-KY >>>
+      "Message Received".CREATEOUTSTREAM(OutStrm);
+      DOMxmlin.Load(OutStrm);
+      //FET-KY <<<
+    END;
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Table creation for reciving message in NAV
+    }
+    END.
+  }
+}
+

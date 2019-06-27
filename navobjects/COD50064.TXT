@@ -1,0 +1,257 @@
+OBJECT Codeunit 50064 RabbitMQ Client
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-MJ;
+  }
+  PROPERTIES
+  {
+    SingleInstance=Yes;
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      RabbitMQClientConnectionFactory@1000000004 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.ConnectionFactory";
+      RabbitMQClientChannel@1000000003 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.IModel";
+      RabbitMQConnection@1000000002 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.IConnection";
+      RabbitMQEventBasicConsumer@1000000001 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.EventingBasicConsumer" WITHEVENTS;
+      RabbitMQIModelExtensions@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.IModelExensions";
+      IntegrationStartedTxt@1000000005 : TextConst 'ENU=RabbitMQ integration of %1 message for %2 company started.';
+      IntegrationStartFailedTxt@1000000006 : TextConst 'ENU=Failed to start RabbitMQ integration of %1 message for %2 company started.';
+
+    LOCAL PROCEDURE StartIntegration@1000000001(MessageType@1000000008 : Record 50165) : Boolean;
+    VAR
+      NULL@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+      FETLibrary@1000000002 : Codeunit 50050;
+      tmpVariant@1000000003 : Variant;
+      HostName@1000000004 : Text;
+      UserName@1000000005 : Text;
+      Password@1000000006 : Text;
+      VirtualHost@1000000007 : Text;
+      ExchangeType@1000000009 : Text;
+      ConsumerTag@1000000001 : Text;
+    BEGIN
+      IF ISNULL(RabbitMQEventBasicConsumer) THEN BEGIN
+        //Get RabbitMQ connection info
+        CLEAR(tmpVariant);
+        FETLibrary.GetParameterValue(tmpVariant,'RABBITMQ','Connection',3,1);
+        HostName := tmpVariant;
+
+        CLEAR(tmpVariant);
+        FETLibrary.GetParameterValue(tmpVariant,'RABBITMQ','Connection',3,2);
+        UserName := tmpVariant;
+
+        CLEAR(tmpVariant);
+        FETLibrary.GetParameterValue(tmpVariant,'RABBITMQ','Connection',3,3);
+        Password := tmpVariant;
+
+        CLEAR(tmpVariant);
+        FETLibrary.GetParameterValue(tmpVariant,'RABBITMQ','Connection',3,4);
+        VirtualHost := tmpVariant;
+
+        RabbitMQClientConnectionFactory := RabbitMQClientConnectionFactory.ConnectionFactory();
+        RabbitMQClientConnectionFactory.HostName := HostName;
+        RabbitMQClientConnectionFactory.UserName := UserName;
+        RabbitMQClientConnectionFactory.Password := Password;
+        RabbitMQClientConnectionFactory.VirtualHost := VirtualHost;
+        RabbitMQConnection := RabbitMQClientConnectionFactory.CreateConnection();
+        ExchangeType := LOWERCASE(FORMAT(MessageType."Exchange Type"));
+        RabbitMQClientChannel := RabbitMQConnection.CreateModel();
+        IF MessageType."Active Declaration" THEN BEGIN
+          RabbitMQClientChannel.ExchangeDeclare(MessageType."Exchange Name",ExchangeType,TRUE,FALSE,NULL);
+          RabbitMQClientChannel.QueueDeclare(MessageType."Queue Name",TRUE,FALSE,FALSE,NULL);
+        END ELSE BEGIN
+          RabbitMQClientChannel.ExchangeDeclarePassive(MessageType."Exchange Name");
+          RabbitMQClientChannel.QueueDeclarePassive(MessageType."Queue Name");
+        END;
+        RegisterBindings(MessageType);
+        RabbitMQEventBasicConsumer := RabbitMQEventBasicConsumer.EventingBasicConsumer(RabbitMQClientChannel);
+        ConsumerTag := 'NAV 2013 (' + COMPANYNAME + ')';
+        RabbitMQIModelExtensions.BasicConsume(RabbitMQClientChannel,MessageType."Queue Name",FALSE,ConsumerTag,RabbitMQEventBasicConsumer);
+        EXIT(TRUE);
+      END;
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE DrawingMessageTypeCode@1000000002() : Code[20];
+    BEGIN
+      EXIT(UPPERCASE('DRAWING'));
+    END;
+
+    LOCAL PROCEDURE InitDrawingMessageType@1000000003(VAR MessageType@1000000000 : Record 50165);
+    BEGIN
+      MessageType.INIT;
+      MessageType.Code := DrawingMessageTypeCode;
+      MessageType.Direction := MessageType.Direction::Inbound;
+      MessageType.Description := 'Extranet Processing Drawing';
+      MessageType."Handling Codeunit" := CODEUNIT::"Drawing Integration Mgt.";
+      MessageType.RabbitMQ := TRUE;
+      MessageType."Exchange Name" := 'AccessForum.Drawings';
+      MessageType."Exchange Type" := MessageType."Exchange Type"::Direct;
+      MessageType."Active Declaration" := FALSE;
+      MessageType."Queue Name" := 'nav2013.' + LOWERCASE(DELCHR(COMPANYNAME,'=',' .-')) + '.drawings';
+      MessageType.INSERT;
+    END;
+
+    LOCAL PROCEDURE RegisterBindings@1000000005(MessageType@1000000000 : Record 50165);
+    VAR
+      RabbitMQRouting@1000000001 : Record 50173;
+      NULL@1000000002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Object";
+    BEGIN
+      RabbitMQRouting.RESET;
+      RabbitMQRouting.SETRANGE("Message Type Code",MessageType.Code);
+      RabbitMQRouting.SETRANGE("Message Type Direction",MessageType.Direction);
+      IF RabbitMQRouting.FINDSET THEN
+        REPEAT
+          RabbitMQClientChannel.QueueBind(RabbitMQRouting."Queue Name",RabbitMQRouting."Exchange Name",
+                                          RabbitMQRouting."Routing Key",NULL);
+        UNTIL RabbitMQRouting.NEXT = 0;
+    END;
+
+    PROCEDURE NASHandler@1000000004(NASID@1000000000 : Text[260]);
+    VAR
+      MessageType@1000000001 : Record 50165;
+    BEGIN
+      MESSAGE(NASID);
+
+      CASE NASID OF
+        DrawingMessageTypeCode:
+        BEGIN
+          MessageType.RESET;
+          MessageType.SETRANGE(Code,DrawingMessageTypeCode);
+          MessageType.SETFILTER(Direction,'%1|%2',MessageType.Direction::Inbound,MessageType.Direction::Both);
+          MessageType.SETRANGE(RabbitMQ,TRUE);
+          IF NOT MessageType.FINDFIRST THEN
+            InitDrawingMessageType(MessageType);
+
+            IF StartIntegration(MessageType) THEN
+              MESSAGE(STRSUBSTNO(IntegrationStartedTxt,NASID,COMPANYNAME))
+            ELSE
+              ERROR(STRSUBSTNO(IntegrationStartFailedTxt,NASID,COMPANYNAME));
+        END;
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertMessage@1000000008(XmlMessage@1000000001 : Text) : Boolean;
+    VAR
+      FETIntegrationComm@300000 : Codeunit 50085;
+    BEGIN
+      IF IsXml(XmlMessage) THEN
+        EXIT(FETIntegrationComm.CreateMessage(COMPANYNAME,XmlMessage));
+
+      EXIT(FALSE);
+
+    END;
+
+    LOCAL PROCEDURE IsXml@1000000007(MessageText@1000000002 : Text) : Boolean;
+    VAR
+      string@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.String";
+      InputText@1000000001 : Text;
+    BEGIN
+      IF NOT string.IsNullOrEmpty(MessageText) THEN BEGIN
+        InputText := DELCHR(MessageText,'<',' ');
+        IF string.IsNullOrEmpty(InputText) THEN
+          EXIT(FALSE);
+        IF InputText[1] = '<' THEN
+          EXIT(TRUE);
+      END;
+      EXIT(FALSE);
+    END;
+
+    EVENT RabbitMQEventBasicConsumer@1000000001::Received@17(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.BasicDeliverEventArgs");
+    VAR
+      MessageBody@1000000004 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Array";
+      MessageText@1000000003 : Text;
+      UTF8Encoding@1000000002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Text.Encoding";
+    BEGIN
+      MessageBody := e.Body;
+      UTF8Encoding := UTF8Encoding.UTF8;
+      MessageText :=  UTF8Encoding.GetString(MessageBody);
+      IF InsertMessage(MessageText) THEN
+        RabbitMQClientChannel.BasicAck(e.DeliveryTag,FALSE)
+      ELSE
+        RabbitMQClientChannel.BasicNack(e.DeliveryTag,FALSE,FALSE);
+    END;
+
+    EVENT RabbitMQEventBasicConsumer@1000000001::Registered@18(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.ConsumerEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQEventBasicConsumer@1000000001::Shutdown@19(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.ShutdownEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQEventBasicConsumer@1000000001::Unregistered@20(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.ConsumerEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQEventBasicConsumer@1000000001::ConsumerCancelled@21(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.ConsumerEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::CallbackException@28(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.CallbackExceptionEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::RecoverySucceeded@29(sender@1000000001 : Variant;e@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::ConnectionRecoveryError@30(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.ConnectionRecoveryErrorEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::ConnectionBlocked@31(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.ConnectionBlockedEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::ConnectionShutdown@32(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.ShutdownEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQConnection@1000000002::ConnectionUnblocked@33(sender@1000000001 : Variant;e@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::BasicAcks@53(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.BasicAckEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::BasicNacks@54(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.BasicNackEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::BasicRecoverOk@55(sender@1000000001 : Variant;e@1000000000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::BasicReturn@56(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.BasicReturnEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::CallbackException@57(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.CallbackExceptionEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::FlowControl@58(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.Events.FlowControlEventArgs");
+    BEGIN
+    END;
+
+    EVENT RabbitMQClientChannel@1000000003::ModelShutdown@59(sender@1000000001 : Variant;e@1000000000 : DotNet "'RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce'.RabbitMQ.Client.ShutdownEventArgs");
+    BEGIN
+    END;
+
+    BEGIN
+    {
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+    }
+    END.
+  }
+}
+

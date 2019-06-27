@@ -1,0 +1,52 @@
+OBJECT Table 50165 Message Type
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY-MJ;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Message Type;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Code                ;Code128       ;CaptionML=ENU=Code }
+    { 2   ;   ;Description         ;Text250       ;CaptionML=ENU=Description }
+    { 3   ;   ;Direction           ;Option        ;CaptionML=ENU=Direction;
+                                                   OptionString=Inbound,Outbound,Both }
+    { 4   ;   ;Handling Codeunit   ;Integer       ;TableRelation=Object.ID WHERE (Company Name=CONST(),
+                                                                                  Type=CONST(Codeunit));
+                                                   CaptionML=ENU=Handling Codeunit }
+    { 5   ;   ;Exchange Name       ;Text80        ;Description=FET-MJ }
+    { 6   ;   ;Exchange Type       ;Option        ;OptionCaptionML=ENU=Fanout,Headers,Topic,Direct;
+                                                   OptionString=Fanout,Headers,Topic,Direct;
+                                                   Description=FET-MJ }
+    { 7   ;   ;Active Declaration  ;Boolean       ;Description=FET-MJ }
+    { 8   ;   ;Queue Name          ;Text80        ;Description=FET-MJ }
+    { 9   ;   ;RabbitMQ            ;Boolean       ;Description=FET-MJ }
+  }
+  KEYS
+  {
+    {    ;Code,Direction                          ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Table creation for different message types handling in NAV
+
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Added RabbitMQ fields
+    }
+    END.
+  }
+}
+

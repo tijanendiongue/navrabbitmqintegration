@@ -1,0 +1,135 @@
+OBJECT Codeunit 50085 FET Integration Communication
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY-MJ-NO;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            Message@1000000000 : Text;
+          BEGIN
+            //FET-KY >>>
+            //TEST
+            Message += '<?xml version="1.0" encoding="utf-16"?>';
+            Message += '<Message>';
+            Message += '  <Header xmlns="urn:msg-draw:draw">';
+            Message += '    <Type xmlns="">DRAWING</Type>';
+            Message += '    <Action xmlns="">CREATE</Action>';
+            Message += '  </Header>';
+            Message += '  <Body xmlns="urn:msg-draw:draw">';
+            Message += '    <Drawings>';
+            Message += '      <Drawing xmlns="">';
+            Message += '        <DrawingNo>1027884</DrawingNo>';
+            Message += '        <Revision> </Revision>';
+            Message += '        <Status>Obsolete</Status>';
+            Message += '        <FilePath>\\fothouweb3\extranet_doc\1027884~-.pdf</FilePath>';
+            Message += '        <DocRecID>11038</DocRecID>';
+            Message += '        <ReleaseDate>0001-01-01T00:00:00</ReleaseDate>';
+            Message += '        <DrwgDate>2009-08-04T21:32:00</DrwgDate>';
+            Message += '        <AuditDate>0001-01-01T00:00:00</AuditDate>';
+            Message += '        <AuditUser />';
+            Message += '      </Drawing>';
+            Message += '    </Drawings>';
+            Message += '  </Body>';
+            Message += '</Message>';
+            CreateMessage('Forum Merrimac',Message);
+            //FET-KY <<<
+          END;
+
+  }
+  CODE
+  {
+
+    PROCEDURE CreateMessage@1000000000(CompanyName@1000000000 : Text[30];XmlMessage@1000000001 : Text) : Boolean;
+    VAR
+      LastEntryNo@1000000006 : Integer;
+      XmlDoc@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      BigText@1000000003 : BigText;
+      InboundMessage@1000000004 : Record 50164;
+      OutStream@1000000005 : OutStream;
+      Company@1000000007 : Record 2000000006;
+    BEGIN
+      //FET-KY >>>
+      EXIT(InsertXmlMessage(CompanyName,XmlMessage)); // FET-MJ
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE InsertXmlMessage@1000000006(CompanyName@1000000000 : Text[30];XmlMessage@1000000001 : Text) : Boolean;
+    VAR
+      LastEntryNo@1000000006 : Integer;
+      XmlDoc@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      BigText@1000000003 : BigText;
+      InboundMessage@1000000004 : Record 50164;
+      OutStream@1000000005 : OutStream;
+      Company@1000000007 : Record 2000000006;
+    BEGIN
+      //FET-MJ >>
+      XmlDoc := XmlDoc.XmlDocument;
+      //XmlDoc.PreserveWhitespace := TRUE;
+      XmlDoc.LoadXml(XmlMessage);
+      LastEntryNo := 0;
+      IF InboundMessage.FINDLAST THEN
+        LastEntryNo := InboundMessage."Entry No.";
+      InboundMessage.INIT;
+      InboundMessage."Entry No." := LastEntryNo + 1;
+      IF CompanyName <> '' THEN
+        Company.GET(CompanyName);
+      InboundMessage.Company := CompanyName;
+      InboundMessage."Creation Datetime" := CURRENTDATETIME;
+      InboundMessage.Status := InboundMessage.Status::New;
+      IF InboundMessage.INSERT THEN BEGIN
+        InboundMessage."Message Received".CREATEOUTSTREAM(OutStream,TEXTENCODING::UTF8);
+        XmlDoc.Save(OutStream);
+        InboundMessage.MODIFY;
+        EXIT(TRUE);
+      END;
+      //FET-MJ <<
+    END;
+
+    PROCEDURE CreateMessageForItemSync@1000000001(CompanyName@1000000000 : Text[30];VAR XmlPath@1000000001 : Text);
+    VAR
+      LastEntryNo@1000000006 : Integer;
+      XmlDoc@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      BigText@1000000003 : BigText;
+      InboundMessage@1000000004 : Record 50164;
+      OutStream@1000000005 : OutStream;
+      Company@1000000007 : Record 2000000006;
+    BEGIN
+      XmlDoc := XmlDoc.XmlDocument;
+      XmlDoc.PreserveWhitespace := TRUE;
+      XmlDoc.Load(XmlPath);
+      LastEntryNo := 0;
+      IF InboundMessage.FINDLAST THEN
+        LastEntryNo := InboundMessage."Entry No.";
+      InboundMessage.INIT;
+      InboundMessage."Entry No." := LastEntryNo + 1;
+      IF CompanyName <> '' THEN
+        Company.GET(CompanyName);
+      InboundMessage.Company := CompanyName;
+      InboundMessage."Creation Datetime" := CURRENTDATETIME;
+      InboundMessage.Status := InboundMessage.Status::New;
+      IF InboundMessage.INSERT THEN BEGIN
+        InboundMessage."Message Received".CREATEOUTSTREAM(OutStream,TEXTENCODING::UTF8);
+        XmlDoc.Save(OutStream);
+        InboundMessage.MODIFY;
+      END;
+    END;
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        Creation of interfacing codeunit for communication
+
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Reworked CreateMessage function
+      FET-NO RSP/MSS 05/07/19 INC0086080\ENHC0010180 - ENHANCEMENT: USDC Item Push Enhancements
+             - Added a function "CreateMessageForItemSync"
+    }
+    END.
+  }
+}
+

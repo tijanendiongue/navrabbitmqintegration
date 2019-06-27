@@ -1,0 +1,399 @@
+OBJECT Codeunit 50090 Drawing Integration Run
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY-MJ;
+  }
+  PROPERTIES
+  {
+    TableNo=50164;
+    OnRun=BEGIN
+            //FET-KY >>>
+            InboundMessage.GET("Entry No.");
+            InboundMessage.CALCFIELDS("Message Received");
+            IF InboundMessage."Message Received".HASVALUE THEN
+              ProcessInboundMessage(InboundMessage);
+            //FET-KY <<<
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      InboundMessage@1000000000 : Record 50164;
+      Text000@1000000002 : TextConst 'ENU=At least one drawing could not be %1 please check log for more details.';
+      Text001@1000000001 : TextConst 'ENU=Drawing No. %1 Revision %2 Status %3';
+
+    LOCAL PROCEDURE ProcessInboundMessage@1000000001(VAR InMessage@1000000000 : Record 50164) : Boolean;
+    VAR
+      XmlDOMMgt@1000000001 : Codeunit 6224;
+      DOMXml@1000000003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      RootNode@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ReturnedNode@1000000004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      MessageAction@1000000005 : Text;
+      TextXml@1000000006 : Text;
+    BEGIN
+      //FET-KY >>>
+      CLEAR(XmlDOMMgt);
+      DOMXml := DOMXml.XmlDocument;
+      DOMXml.PreserveWhitespace := TRUE;
+      TextXml := InMessage.GetTextMessage;
+      DOMXml.LoadXml(TextXml);
+      RootNode := DOMXml.DocumentElement();
+      XmlDOMMgt.FindNode(RootNode,'/Message/Header/Action',ReturnedNode);
+      MessageAction := ReturnedNode.InnerXml;
+      XmlDOMMgt.FindNode(RootNode,'/Message/Body',ReturnedNode);
+      TextXml := ReturnedNode.InnerXml;
+      IF TextXml <> '' THEN BEGIN
+        CASE MessageAction OF
+          'CREATE':
+          BEGIN
+            IF NOT CreateDrawings(TextXml) THEN BEGIN
+              COMMIT;
+            END;
+          END;
+          'UPDATE':
+          BEGIN
+            IF NOT UpdateDrawings(TextXml) THEN BEGIN
+              COMMIT;
+            END;
+          END;
+      END;
+      END;
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE CreateDrawings@1000000000(BodyXml@1000000000 : Text) : Boolean;
+    VAR
+      XMLDOMMgt@1000000004 : Codeunit 6224;
+      DOMxmlin@1000000003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      RootNode@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ReturnedNode@1000000001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ChildNodeList@1000000006 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      I@1000000007 : Integer;
+      Drawing@1000000008 : Record 50130;
+      ExitValue@1000000012 : Boolean;
+      Count@1000000005 : Integer;
+      NodeName@1000000009 : Text;
+      DrawingNo@1000000010 : Text;
+      DrawingRevision@1000000011 : Text;
+      DrawingStatus@1000000013 : Text;
+      ChildNode@1000000014 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      Drawing2@1000000015 : Record 50130;
+    BEGIN
+      //FET-KY >>>
+      DOMxmlin := DOMxmlin.XmlDocument();
+      DOMxmlin.PreserveWhitespace := TRUE;
+      DOMxmlin.LoadXml(BodyXml);
+      RootNode := DOMxmlin.DocumentElement();
+      ExitValue := FALSE;
+      IF NOT XMLDOMMgt.FindNodes(RootNode,'/Drawings/Drawing',ChildNodeList) THEN
+        EXIT(ExitValue);
+      Count := ChildNodeList.Count;
+      ExitValue := TRUE;
+      FOR I := 0 TO ChildNodeList.Count - 1 DO BEGIN
+        ReturnedNode := ChildNodeList.ItemOf(I);
+        NodeName := UPPERCASE(ReturnedNode.Name);
+        IF NodeName = 'DRAWING' THEN BEGIN
+          IF InitDrawingFromXml(ReturnedNode.OuterXml,Drawing) THEN BEGIN
+            Drawing."Created Date/Time" := CURRENTDATETIME;
+            IF NOT Drawing.INSERT THEN BEGIN
+              //FET-MJ >>
+              IF Drawing2.GET(Drawing."Drawing No.",Drawing.Revision) THEN BEGIN
+                UpdateExistingDrawing(Drawing,Drawing2);
+              END ELSE BEGIN
+                LogDrawing(Drawing,2,
+                  STRSUBSTNO(Text001,Drawing."Drawing No.",Drawing.Revision,Drawing.Status) +
+                    ' could not be inserted');
+                ExitValue := FALSE;
+              END;
+            END ELSE BEGIN
+              SetOldRevisionsToObsolete(Drawing);
+            END;
+            //FET-MJ <<
+          END ELSE BEGIN
+            ExitValue := FALSE;
+            IF NOT ISNULL(ReturnedNode) THEN BEGIN
+              IF XMLDOMMgt.FindNode(ReturnedNode,'DrawingNo',ChildNode) THEN
+                DrawingNo := ChildNode.InnerXml;
+              IF XMLDOMMgt.FindNode(ReturnedNode,'Revison',ChildNode) THEN
+                DrawingRevision := ChildNode.InnerXml;
+              IF XMLDOMMgt.FindNode(ReturnedNode,'Status',ChildNode) THEN
+                DrawingStatus := ChildNode.InnerXml;
+              LogDrawing(Drawing,2,
+                STRSUBSTNO(Text001,DrawingNo,DrawingRevision,DrawingStatus) +
+                  ' could not be inserted');
+            END;
+          END;
+        END;
+      END;
+      EXIT(ExitValue);
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE UpdateDrawings@1000000002(BodyXml@1000000000 : Text) : Boolean;
+    VAR
+      XMLDOMMgt@1000000004 : Codeunit 6224;
+      DOMxmlin@1000000003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      RootNode@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ReturnedNode@1000000001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      ChildNodeList@1000000006 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      I@1000000007 : Integer;
+      Drawing@1000000008 : Record 50130;
+      ExitValue@1000000012 : Boolean;
+      Count@1000000005 : Integer;
+      NodeName@1000000009 : Text;
+      Drawing2@1000000010 : Record 50130;
+    BEGIN
+      //FET-KY >>>
+      DOMxmlin := DOMxmlin.XmlDocument();
+      DOMxmlin.PreserveWhitespace := TRUE;
+      DOMxmlin.LoadXml(BodyXml);
+      RootNode := DOMxmlin.DocumentElement();
+      ExitValue := FALSE;
+      IF NOT XMLDOMMgt.FindNodes(RootNode,'/Drawings/Drawing',ChildNodeList) THEN
+        EXIT(ExitValue);
+      Count := ChildNodeList.Count;
+      ExitValue := TRUE;
+      Drawing2.RESET;
+      FOR I := 0 TO ChildNodeList.Count - 1 DO BEGIN
+        ReturnedNode := ChildNodeList.ItemOf(I);
+        NodeName := UPPERCASE(ReturnedNode.Name);
+        IF NodeName = 'DRAWING' THEN BEGIN
+          IF InitDrawingFromXml(ReturnedNode.OuterXml,Drawing) THEN BEGIN
+            IF Drawing2.GET(Drawing."Drawing No.",Drawing.Revision) THEN BEGIN
+              UpdateExistingDrawing(Drawing,Drawing2);
+            END ELSE
+              ExitValue := FALSE;
+          END ELSE
+            ExitValue := FALSE;
+        END;
+      END;
+      EXIT(ExitValue);
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE SetOldRevisionsToObsolete@300000(VAR Drawing@300000 : Record 50130);
+    VAR
+      Drawing2@300001 : Record 50130;
+    BEGIN
+      //FET-MJ >>
+      IF Drawing.Status <> Drawing.Status::Released THEN
+        EXIT;
+      Drawing2.RESET;
+      Drawing2.SETRANGE("Drawing No.",Drawing."Drawing No.");
+      Drawing2.SETFILTER("File Version No.",'<%1',Drawing."File Version No.");
+      Drawing2.SETFILTER(Status,'<>%1',Drawing2.Status::Released);
+      IF Drawing2.FINDSET THEN
+        REPEAT
+          Drawing2.Status := Drawing2.Status::Obsolete;
+          Drawing2."Modified Date/Time" := CURRENTDATETIME;
+          Drawing2.MODIFY;
+        UNTIL Drawing2.NEXT = 0;
+      //FET-MJ <<
+    END;
+
+    LOCAL PROCEDURE InitDrawingFromXml@1000000004(XmlIn@1000000000 : Text;VAR Drawing@1000000001 : Record 50130) : Boolean;
+    VAR
+      XMLDOMMgt@1000000003 : Codeunit 6224;
+      ChildNode@1000000002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      TextVar@1000000006 : Text;
+      IntVar@1000000005 : Integer;
+      DatetimeVar@1000000004 : DateTime;
+      Doc@1000000007 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      RootNode@1000000008 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNode";
+      NodeList@1000000009 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      I@1000000010 : Integer;
+      NodeName@1000000011 : Text;
+      StatusOption@1000000012 : 'New,On Hold,Released,Under Review,Obsolete';
+      IsValidDrawingNo@1000000013 : Boolean;
+      Desc1Txt@1000000014 : Text;
+      Desc2Txt@1000000015 : Text;
+    BEGIN
+      //FET-KY >>>
+      Drawing.INIT;
+      Doc := Doc.XmlDocument();
+      Doc.PreserveWhitespace := TRUE;
+      Doc.LoadXml(XmlIn);
+      RootNode := Doc.DocumentElement;
+      NodeList := RootNode.ChildNodes;
+      IsValidDrawingNo := FALSE;
+
+      FOR I := 0 TO NodeList.Count - 1 DO BEGIN
+        ChildNode := NodeList.ItemOf(I);
+        NodeName := UPPERCASE(ChildNode.Name);
+        CASE NodeName OF
+          'DRAWINGNO':
+          BEGIN
+            IF EVALUATE(TextVar,ChildNode.InnerText,9) THEN BEGIN
+              IF STRLEN(TextVar) <= MAXSTRLEN(Drawing."Drawing No.") THEN BEGIN
+                Drawing."Drawing No." := UPPERCASE(TextVar);
+                IsValidDrawingNo := TRUE;
+              END;
+            END;
+          END;
+          'REVISION':
+             EVALUATE(Drawing.Revision,ChildNode.InnerText,9);
+          'STATUS':
+          BEGIN
+            EVALUATE(TextVar,ChildNode.InnerText,9);
+            CASE UPPERCASE(TextVar) OF
+              'OBSOLETE':
+                StatusOption := StatusOption::Obsolete;
+              'NEW':
+                StatusOption := StatusOption::New;
+              'UNDER_REVIEW','UNDER ECR REVIEW':
+                StatusOption := StatusOption::"Under Review";
+              'RELEASED':
+                StatusOption := StatusOption::Released;
+            END;
+            Drawing.Status := StatusOption;
+          END;
+          'FILEPATH':
+          BEGIN
+            IF EVALUATE(TextVar,ChildNode.InnerText,9) THEN
+              Drawing.Hyperlink := COPYSTR(TextVar,1,MAXSTRLEN(Drawing.Hyperlink));
+          END;
+          'DOCRECID':
+          BEGIN
+            IF EVALUATE(IntVar,ChildNode.InnerText,9) THEN
+              Drawing.DocRecID := IntVar;
+          END;
+          'RELEASEDATE':
+          BEGIN
+            IF EVALUATE(DatetimeVar,ChildNode.InnerText,9) THEN
+              Drawing.DateApproved := DatetimeVar;
+          END;
+          'DRWGDATE':
+          BEGIN
+            IF EVALUATE(DatetimeVar,ChildNode.InnerText,9) THEN
+              Drawing.DrwgDate := DatetimeVar;
+          END;
+          'AUDITDATE':
+          BEGIN
+            IF EVALUATE(DatetimeVar,ChildNode.InnerText,9) THEN
+              Drawing.AuditDate := DatetimeVar;
+          END;
+          'AUDITUSER':
+          BEGIN
+            IF EVALUATE(TextVar,ChildNode.InnerText,9) THEN
+              Drawing.AuditUser := COPYSTR(TextVar,1,MAXSTRLEN(Drawing.AuditUser));
+          END;
+          'DESCRIPTION1':
+          BEGIN
+            IF EVALUATE(TextVar,ChildNode.InnerText,9) THEN
+              Desc1Txt := TextVar;
+          END;
+          'DESCRIPTION2':
+          BEGIN
+            IF EVALUATE(TextVar,ChildNode.InnerText,9) THEN
+              Desc2Txt := TextVar;
+          END;
+          'VERSION':
+          BEGIN
+            IF EVALUATE(IntVar,ChildNode.InnerText,9) THEN
+              Drawing."File Version No." := IntVar;
+          END;
+        END;
+      END;
+      Drawing.Notes := COPYSTR(Desc1Txt+Desc2Txt,1,MAXSTRLEN(Drawing.Notes));
+      EXIT(IsValidDrawingNo);
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE UpdateExistingDrawing@1000000003(VAR FromDrawing@1000000000 : Record 50130;VAR ToDrawing@1000000001 : Record 50130) : Boolean;
+    VAR
+      RecUpdated@1000000002 : Boolean;
+    BEGIN
+      //FET-KY >>>
+      RecUpdated := FALSE;
+      WITH ToDrawing DO BEGIN
+        IF Status  <> FromDrawing.Status THEN BEGIN
+          Status := FromDrawing.Status;
+          RecUpdated := TRUE;
+        END;
+        IF Hyperlink <> FromDrawing.Hyperlink THEN BEGIN
+          Hyperlink := FromDrawing.Hyperlink;
+          RecUpdated := TRUE;
+        END;
+        IF DocRecID <> FromDrawing.DocRecID THEN BEGIN
+          DocRecID := FromDrawing.DocRecID;
+          RecUpdated := TRUE;
+        END;
+        IF DrwgDate <> FromDrawing.DrwgDate THEN BEGIN
+          DrwgDate := FromDrawing.DrwgDate;
+          RecUpdated := TRUE;
+        END;
+        IF DateApproved <> FromDrawing.DateApproved THEN BEGIN
+          DateApproved := FromDrawing.DateApproved;
+          RecUpdated := TRUE;
+        END;
+        IF AuditUser <> FromDrawing.AuditUser THEN BEGIN
+          AuditUser := FromDrawing.AuditUser;
+          RecUpdated := TRUE;
+        END;
+        IF AuditDate <> FromDrawing.AuditDate THEN BEGIN
+          AuditDate := FromDrawing.AuditDate;
+          RecUpdated := TRUE;
+        END;
+        IF "File Version No." <> FromDrawing."File Version No." THEN BEGIN
+          "File Version No." := FromDrawing."File Version No.";
+          RecUpdated := TRUE;
+        END;
+        IF RecUpdated THEN BEGIN
+          "Modified Date/Time" := CURRENTDATETIME;
+          IF NOT MODIFY THEN
+            LogDrawing(FromDrawing,2,
+              STRSUBSTNO(Text001,FromDrawing."Drawing No.",FromDrawing.Revision,FromDrawing.Status) +
+                ' could not be updated')
+          ELSE
+            SetOldRevisionsToObsolete(ToDrawing); // FET-MJ
+        END;
+      END;
+      EXIT(RecUpdated);
+      //FET-KY <<<
+    END;
+
+    LOCAL PROCEDURE LogDrawing@1000000005(Drawing@1000000000 : Record 50130;LogType@1000000001 : 'Information,Warning,Error';LogTxt@1000000004 : Text[250]);
+    VAR
+      MessageLog@1000000002 : Record 50166;
+      LastEntryNo@1000000003 : Integer;
+    BEGIN
+      //FET-KY >>>
+      LastEntryNo := 1;
+      MessageLog.RESET;
+      SELECTLATESTVERSION;
+      IF MessageLog.FINDLAST THEN
+        LastEntryNo += MessageLog."Entry No.";
+      MessageLog."Entry No." := LastEntryNo;
+      MessageLog.INIT;
+      MessageLog."Message Direction" := MessageLog."Message Direction"::Inbound;
+      MessageLog."Message Entry No." := InboundMessage."Entry No.";
+      IF LogTxt <> '' THEN
+        MessageLog.Log := COPYSTR(LogTxt,1,MAXSTRLEN(MessageLog.Log))
+      ELSE
+        MessageLog.Log := STRSUBSTNO(Text001,Drawing."Drawing No.",Drawing.Revision,Drawing.Status);
+      MessageLog."Log Type" := LogType;
+      IF NOT MessageLog.INSERT THEN BEGIN
+        LastEntryNo += 1;
+        MessageLog."Entry No." := LastEntryNo;
+        IF MessageLog.INSERT THEN;
+      END;
+      //FET-KY <<<
+    END;
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Drawing Creation and update codeunit
+
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Modified CreateDrawings function to update drawing if insert fail
+    }
+    END.
+  }
+}
+

@@ -1,0 +1,64 @@
+OBJECT Table 50173 RabbitMQ Message Routing
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-MJ;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=RabbitMQ Message Routing;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Message Type Code   ;Code128       ;CaptionML=ENU=Message Type Code;
+                                                   Editable=No }
+    { 3   ;   ;Message Type Direction;Option      ;CaptionML=ENU=Message Type Direction;
+                                                   OptionString=Inbound,Outbound,Both;
+                                                   Editable=No }
+    { 4   ;   ;Line No.            ;Integer       ;CaptionML=ENU=Line No.;
+                                                   Editable=No }
+    { 5   ;   ;Exchange Name       ;Text80        ;CaptionML=ENU=Exchange Name;
+                                                   Editable=No }
+    { 8   ;   ;Queue Name          ;Text80        ;CaptionML=ENU=Queue Name;
+                                                   Editable=No }
+    { 9   ;   ;Routing Key         ;Text80        ;OnValidate=BEGIN
+                                                                GetMessageType;
+
+                                                                "Exchange Name" := MessageType."Exchange Name";
+                                                                "Queue Name" := MessageType."Queue Name";
+                                                              END;
+
+                                                   CaptionML=ENU=Routing Key }
+  }
+  KEYS
+  {
+    {    ;Message Type Code,Message Type Direction,Line No.;
+                                                   Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      MessageType@1000000000 : Record 50165;
+
+    LOCAL PROCEDURE GetMessageType@1000000000();
+    BEGIN
+      TESTFIELD("Message Type Code");
+      IF ("Message Type Code" <> MessageType.Code) OR ("Message Type Direction" <> MessageType.Direction) THEN
+        MessageType.GET("Message Type Code","Message Type Direction");
+    END;
+
+    BEGIN
+    {
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Created table
+    }
+    END.
+  }
+}
+

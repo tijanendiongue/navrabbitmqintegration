@@ -1,0 +1,101 @@
+OBJECT Page 50123 Message Type
+{
+  OBJECT-PROPERTIES
+  {
+    Date=05/15/19;
+    Time=12:00:00 AM;
+    Modified=Yes;
+    Version List=FET-KY-MJ;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Message Type;
+    SourceTable=Table50165;
+    DataCaptionFields=Code,Direction;
+    PageType=Card;
+    OnAfterGetCurrRecord=BEGIN
+                           DynamicEditable := CurrPage.EDITABLE;
+                         END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 1000000002;2;Field  ;
+                SourceExpr=Code }
+
+    { 1000000003;2;Field  ;
+                SourceExpr=Description }
+
+    { 1000000004;2;Field  ;
+                SourceExpr=Direction }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Handling Codeunit" }
+
+    { 1000000008;1;Group  ;
+                Name=RMQ;
+                CaptionML=ENU=RabbitMQ;
+                GroupType=Group }
+
+    { 1000000009;2;Field  ;
+                CaptionML=ENU=Enable;
+                SourceExpr=RabbitMQ }
+
+    { 1000000010;2;Field  ;
+                SourceExpr="Exchange Name";
+                Enabled=RabbitMQ;
+                Editable=DynamicEditable }
+
+    { 1000000011;2;Field  ;
+                SourceExpr="Exchange Type";
+                Enabled=RabbitMQ;
+                Editable=DynamicEditable }
+
+    { 1000000012;2;Field  ;
+                SourceExpr="Active Declaration";
+                Enabled=RabbitMQ;
+                Editable=DynamicEditable }
+
+    { 1000000013;2;Field  ;
+                SourceExpr="Queue Name";
+                Enabled=RabbitMQ;
+                Editable=DynamicEditable }
+
+    { 1000000014;1;Part   ;
+                SubPageLink=Message Type Code=FIELD(Code),
+                            Message Type Direction=FIELD(Direction);
+                PagePartID=Page50284;
+                PartType=Page }
+
+    { 1000000006;0;Container;
+                ContainerType=FactBoxArea }
+
+    { 1000000007;1;Part   ;
+                Visible=FALSE;
+                PartType=System;
+                SystemPartID=Notes }
+
+  }
+  CODE
+  {
+    VAR
+      DynamicEditable@1000000000 : Boolean INDATASET;
+
+    BEGIN
+    {
+      FET-KY TND 10/15/18 [ENHC0010177] - Drawing integration from Extranet to NAV
+        - Page creation
+      FET-MJ TND 01/28/19 [ENHC0010416] - Drawing Integration from Extranet 2.0 to NAV 2013
+        - Added RabbitMQ fields
+    }
+    END.
+  }
+}
+
